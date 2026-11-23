@@ -5,7 +5,7 @@ let socket = null;
 export const socketService = {
   connect: (token, onConnect, onDisconnect, onNewMessage, onNewInquiry, onNewQuotation, onContactShared, onTyping, onStopTyping, onPresence) => {
     if (socket) return socket;
-    socket = io(import.meta.env.VITE_API_BASE || 'http://localhost:5000', {
+    socket = io(import.meta.env.VITE_API_BASE || 'https://community-olc-backend.onrender.com', {
       auth: { token },
       transports: ['websocket', 'polling'],
     });
