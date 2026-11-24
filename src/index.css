@@ -589,7 +589,7 @@ button { touch-action: manipulation; }
   .help-page-heading { display: flex; flex-direction: column; align-items: flex-start; }
   .inquiries-mobile-title h2 { margin-bottom: 8px !important; }
   .inquiry-mobile-chat { width: calc(100% + 24px); min-height: 0 !important; overflow: hidden; }
-  .chat-composer { margin-bottom: 0; padding: 9px 10px 8px !important; gap: 6px !important; }
+  .chat-composer { margin-bottom: 16; padding: 9px 10px 8px !important; gap: 6px !important; }
   .chat-composer .input-field { min-height: 40px; min-width: 0; font-size: 13px !important; }
   .help-page-heading { margin-bottom: 14px !important; }
   .help-page-heading h1 { font-size: 19px !important; }
