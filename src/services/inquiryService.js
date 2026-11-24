@@ -21,6 +21,10 @@ export const inquiryService = {
     const res = await api.patch(`/inquiries/${id}/close`);
     return res.data;
   },
+  shareContact: async (id) => {
+    const res = await api.post(`/inquiries/${id}/contact-share`);
+    return res.data;
+  },
   messages: {
     list: async (conversationId) => {
       const res = await api.get(`/inquiries/${conversationId}/messages`);

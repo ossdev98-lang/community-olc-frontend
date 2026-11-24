@@ -60,7 +60,7 @@ function AppSplash() {
       <div className="app-splash-content">
         <div className="app-splash-mark-wrap">
           <div className="app-splash-ring" />
-          <div className="app-splash-mark">OLC</div>
+          <img className="app-splash-mark" src="/ozone_lapcare_icon_transparent.png" alt="Ozone Lapcare" />
         </div>
         <div className="app-splash-brand">Ozone Lapcare</div>
         <div className="app-splash-community">COMMUNITY</div>

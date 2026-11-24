@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Send, Paperclip, Phone, ArrowLeft, MessageSquare, CheckCheck, Check, AlertCircle, Package, X } from 'lucide-react';
+import { Search, Send, Paperclip, Phone, ArrowLeft, MessageSquare, CheckCheck, Check, AlertCircle, Package, X, LoaderCircle } from 'lucide-react';
 import { requirementService, inquiryService, shopService, authService, socketService } from '../../services/index.js';
 import { useAuthStore } from '../../store/authStore.js';
 import LoadingState from '../../components/feedback/LoadingState.jsx';
@@ -133,11 +133,15 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const sendingMessageRef = useRef(false);
+  const sharingContactRef = useRef(false);
   const [otherUser, setOtherUser] = useState(null);
   const [otherTyping, setOtherTyping] = useState(false);
   const otherShop = useParticipantDetails(otherUser, conv?.requirement?.shop_id);
   const [isExpired, setIsExpired] = useState(false);
-  const [contactShared, setContactShared] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sharingContact, setSharingContact] = useState(false);
+  const [contactShares, setContactShares] = useState([]);
 
   const loadConv = async () => {
     try {
@@ -150,8 +154,7 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
       if (c.requirement) {
         setIsExpired(c.requirement.status === 'EXPIRED' || new Date(c.requirement.expires_at) <= Date.now());
       }
-      const cs = c.contactShares || [];
-      setContactShared(cs.length > 0);
+      setContactShares(c.contactShares || []);
     } catch (err) {
       console.error('Load conversation failed', err);
     }
@@ -166,6 +169,9 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
     const handleNewQuotation = (event) => {
       if (String(event.detail?.conversationId) === String(convId)) loadConv();
     };
+    const handleContactShared = (event) => {
+      if (String(event.detail?.conversationId) === String(convId)) loadConv();
+    };
     const handleTyping = (event) => {
       if (String(event.detail?.conversationId) === String(convId) && String(event.detail?.userId) !== String(userId)) setOtherTyping(true);
     };
@@ -174,12 +180,14 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
     };
     window.addEventListener('olc:socket:new_message', handleNewMessage);
     window.addEventListener('olc:socket:new_quotation', handleNewQuotation);
+    window.addEventListener('olc:socket:contact_shared', handleContactShared);
     window.addEventListener('olc:socket:typing', handleTyping);
     window.addEventListener('olc:socket:stop_typing', handleStopTyping);
     return () => {
       socketService.leaveConversation(convId);
       window.removeEventListener('olc:socket:new_message', handleNewMessage);
       window.removeEventListener('olc:socket:new_quotation', handleNewQuotation);
+      window.removeEventListener('olc:socket:contact_shared', handleContactShared);
       window.removeEventListener('olc:socket:typing', handleTyping);
       window.removeEventListener('olc:socket:stop_typing', handleStopTyping);
       window.clearTimeout(typingTimeoutRef.current);
@@ -194,7 +202,9 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
   const senderName = otherShop.ownerName;
 
   const sendMessage = async () => {
-    if (!message.trim() || !conv) return;
+    if (!message.trim() || !conv || sendingMessageRef.current) return;
+    sendingMessageRef.current = true;
+    setSendingMessage(true);
     socketService.stopTyping(convId, userId);
     window.clearTimeout(typingTimeoutRef.current);
     try {
@@ -203,6 +213,27 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
       loadConv();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send');
+    } finally {
+      sendingMessageRef.current = false;
+      setSendingMessage(false);
+    }
+  };
+
+  const shareContact = async () => {
+    if (sharingContactRef.current) return;
+    sharingContactRef.current = true;
+    setSharingContact(true);
+    try {
+      const response = await inquiryService.shareContact(convId);
+      const data = response.data?.data ?? response.data;
+      const share = data.contactShare;
+      if (share) setContactShares(current => current.some(item => item.id === share.id) ? current : [...current, share]);
+      toast.success('Your name and phone number are now shared in this chat.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to share contact details');
+    } finally {
+      sharingContactRef.current = false;
+      setSharingContact(false);
     }
   };
 
@@ -231,7 +262,7 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: isMobile ? '100%' : '100%', minHeight: 0, overflow: 'hidden', background: '#fff' }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5EAF0', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      <div className="chat-header" style={{ padding: '12px 16px', borderBottom: '1px solid #E5EAF0', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && <button onClick={onBack} style={{ background: '#F4F7FA', border: 'none', borderRadius: 9, padding: 8, cursor: 'pointer', display: 'flex', color: '#152536', flexShrink: 0 }}><ArrowLeft size={18} /></button>}
         <Avatar name={otherShop.shopName} size={38} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -239,11 +270,13 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
           <p style={{ margin: 0, fontSize: 11, color: '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Owner: {otherShop.ownerName}</p>
           <p style={{ margin: 0, fontSize: 10, color: '#A0AEC0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Re: {conv.requirement?.title || ''}</p>
         </div>
-        {!contactShared ? (
-          <button onClick={() => { toast.success('Contact shared!'); }} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600, background: '#EAF3F9', color: '#176FA9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <Phone size={12} /> Share
+        {contactShares.some(share => share.shared_by_user_id == userId) ? (
+          <Badge variant="teal" size="xs"><Check size={11} /> You shared</Badge>
+        ) : (
+          <button onClick={shareContact} disabled={sharingContact} title="Share your name and phone number in this chat" style={{ padding: '7px 10px', borderRadius: 9, fontSize: 11, fontWeight: 600, background: sharingContact ? '#F4F7FA' : '#EAF3F9', color: '#176FA9', border: 'none', cursor: sharingContact ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: sharingContact ? 0.7 : 1 }}>
+            {sharingContact ? <LoaderCircle size={13} style={{ animation: 'olc-spin 0.8s linear infinite' }} /> : <Phone size={12} />} {sharingContact ? 'Sharing…' : 'Share Contact'}
           </button>
-        ) : <Badge variant="teal" size="xs"><Phone size={10} /> Shared</Badge>}
+        )}
       </div>
 
       {isExpired && (
@@ -253,8 +286,20 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
         </div>
       )}
 
-      <div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }} className="no-scrollbar">
+      <div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', padding: '16px' }} className="chat-messages no-scrollbar">
         {conv.messages.map(msg => <MessageBubble key={msg.id} msg={msg} isOwn={msg.sender_user_id == userId} userName={senderName} />)}
+        {contactShares.map(share => {
+          const ownShare = share.shared_by_user_id == userId;
+          return (
+            <div key={`contact-${share.id}`} style={{ display: 'flex', justifyContent: ownShare ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
+              <div style={{ maxWidth: '85%', padding: '11px 14px', borderRadius: 14, background: ownShare ? '#EAF3F9' : '#E7F8F5', border: `1px solid ${ownShare ? '#BFD9EC' : '#B8E8DF'}`, color: '#152536' }}>
+                <p style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 5px', fontSize: 12, fontWeight: 700, color: '#176FA9' }}><Phone size={13} />{ownShare ? 'You shared your contact' : 'Contact details shared'}</p>
+                <p style={{ margin: '0 0 3px', fontSize: 13, fontWeight: 600 }}>{share.contact_name}</p>
+                <a href={`tel:${share.contact_mobile}`} style={{ color: '#176FA9', fontSize: 13, textDecoration: 'none' }}>{share.contact_mobile}</a>
+              </div>
+            </div>
+          );
+        })}
         {otherTyping && <p style={{ margin: '4px 0 12px', fontSize: 12, color: '#718096', fontStyle: 'italic' }}>Typing…</p>}
         <div ref={messagesEndRef} />
       </div>
@@ -280,7 +325,7 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
       <div className="chat-composer" style={{ padding: '10px 12px', borderTop: '1px solid #E5EAF0', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0, background: '#fff' }}>
         <button onClick={() => setShowQForm(!showQForm)} style={{ padding: 9, borderRadius: 10, background: '#F4F7FA', border: 'none', cursor: 'pointer', display: 'flex', color: '#718096', flexShrink: 0 }} title="Send Quotation"><Package size={18} /></button>
         <button style={{ padding: 9, borderRadius: 10, background: '#F4F7FA', border: 'none', cursor: 'pointer', display: 'flex', color: '#718096', flexShrink: 0 }}><Paperclip size={18} /></button>
-        <input value={message} onChange={e => {
+        <input value={message} disabled={sendingMessage} onChange={e => {
           setMessage(e.target.value);
           if (e.target.value.trim()) {
             socketService.typing(convId, userId, userName);
@@ -290,8 +335,10 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
             socketService.stopTyping(convId, userId);
             window.clearTimeout(typingTimeoutRef.current);
           }
-        }} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()} placeholder="Type a message..." className="input-field" style={{ flex: 1, fontSize: 14 }} />
-        <button onClick={sendMessage} disabled={!message.trim()} style={{ padding: 9, borderRadius: 10, border: 'none', cursor: message.trim() ? 'pointer' : 'not-allowed', background: message.trim() ? 'linear-gradient(135deg,#176FA9,#21AFA9)' : '#E5EAF0', color: message.trim() ? '#fff' : '#A0AEC0', display: 'flex', flexShrink: 0 }}><Send size={18} /></button>
+        }} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())} placeholder="Type a message..." className="input-field" style={{ flex: 1, fontSize: 14 }} />
+        <button onClick={sendMessage} disabled={!message.trim() || sendingMessage} aria-label={sendingMessage ? 'Sending message' : 'Send message'} style={{ padding: 9, borderRadius: 10, border: 'none', cursor: message.trim() && !sendingMessage ? 'pointer' : 'not-allowed', background: message.trim() && !sendingMessage ? 'linear-gradient(135deg,#176FA9,#21AFA9)' : '#E5EAF0', color: message.trim() && !sendingMessage ? '#fff' : '#A0AEC0', display: 'flex', flexShrink: 0 }}>
+          {sendingMessage ? <LoaderCircle size={18} style={{ animation: 'olc-spin 0.8s linear infinite' }} /> : <Send size={18} />}
+        </button>
       </div>
     </div>
   );
@@ -373,7 +420,7 @@ export default function InquiriesPage() {
   if (isMobile) {
     if (showChat && activeId) {
       return (
-        <div className="inquiry-mobile-chat" style={{ margin: '0 -12px', height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))', minHeight: 0 }}>
+        <div className="inquiry-mobile-chat" style={{ margin: '0 -12px', height: '100%', minHeight: 0 }}>
           <ChatView convId={activeId} onBack={handleBack} isMobile={true} userId={user.id} userName={user.name} />
         </div>
       );
@@ -404,7 +451,7 @@ export default function InquiriesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: '#fff', borderRadius: 16, border: '1px solid #E5EAF0', overflow: 'hidden' }}>
+    <div className="inquiries-desktop-chat-shell" style={{ display: 'flex', height: '100%', background: '#fff', borderRadius: 16, border: '1px solid #E5EAF0', overflow: 'hidden' }}>
       <div style={{ width: 320, borderRight: '1px solid #E5EAF0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #E5EAF0' }}>
           <h2 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, fontFamily: 'Manrope, sans-serif', color: '#152536' }}>Private Inquiries</h2>
