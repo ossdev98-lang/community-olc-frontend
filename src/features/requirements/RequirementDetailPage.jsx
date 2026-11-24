@@ -11,6 +11,7 @@ import Card from '../../components/ui/Card.jsx';
 import { formatTimeAgo, formatTimeRemaining, getUrgencyStyles } from '../../utils/index.js';
 import { CATEGORY_COLORS } from '../../constants/index.js';
 import { toast } from 'sonner';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 
 export default function RequirementDetailPage() {
   const { id } = useParams();
@@ -46,7 +47,7 @@ export default function RequirementDetailPage() {
     load();
   }, [id, user?.shopId]);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading requirement…" />;
   if (!req) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
       <p style={{ color: '#718096' }}>Requirement not found</p>

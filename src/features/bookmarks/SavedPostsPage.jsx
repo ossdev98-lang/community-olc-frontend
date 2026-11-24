@@ -4,6 +4,7 @@ import { Bookmark, Search, Trash2, ExternalLink, ArrowLeft } from 'lucide-react'
 import { bookmarkService, requirementService } from '../../services/index.js';
 import RequirementCard from '../community/RequirementCard.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { formatTimeRemaining } from '../../utils/index.js';
 import { toast } from 'sonner';
@@ -48,7 +49,7 @@ export default function SavedPostsPage() {
   const active = filtered.filter(r => r.status === 'ACTIVE' && new Date(r.expires_at || r.expiresAt) > Date.now());
   const expired = filtered.filter(r => r.status !== 'ACTIVE' || new Date(r.expires_at || r.expiresAt) <= Date.now());
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading saved posts…" />;
 
   return (
     <div className="saved-posts-page" style={{ maxWidth: 800 }}>

@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore.js';
 import Button from '../../components/ui/Button.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import { formatTimeAgo, formatTimeRemaining, getUrgencyStyles } from '../../utils/index.js';
 import { CATEGORY_COLORS } from '../../constants/index.js';
 import { toast } from 'sonner';
@@ -64,7 +65,7 @@ export default function MyRequirementsPage() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading your requirements…" />;
 
   return (
     <div className="my-requirements-page" style={{ maxWidth: 900 }}>

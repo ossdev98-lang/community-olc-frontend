@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, CheckCircle, ShieldOff, ShieldCheck, Eye, MapPin } from 'lucide-react';
 import { adminService } from '../../services/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -64,7 +65,7 @@ export default function AdminMembersPage() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading members…" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>

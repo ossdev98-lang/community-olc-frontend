@@ -6,6 +6,7 @@ import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import { formatTimeAgo } from '../../utils/index.js';
 
 export default function ShopDirectoryPage() {
@@ -45,7 +46,7 @@ export default function ShopDirectoryPage() {
     return list;
   }, [shops, search, cityFilter, verifiedOnly]);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading shops…" />;
 
   return (
     <div className="shop-directory-page" style={{ maxWidth: 1000 }}>

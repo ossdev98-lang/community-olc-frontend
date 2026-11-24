@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Eye, MapPin, Building, Phone, Mail } from 'lucide-react';
 import { adminService } from '../../services/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -56,7 +57,7 @@ export default function AdminApprovalsPage() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading shop applications…" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>

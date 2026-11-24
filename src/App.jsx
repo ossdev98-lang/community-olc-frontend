@@ -7,6 +7,8 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from './store/authStore.js';
 import NetworkStatus from './components/feedback/NetworkStatus.jsx';
 import PwaInstallPrompt from './components/feedback/PwaInstallPrompt.jsx';
+import GlobalLoadingBar from './components/feedback/GlobalLoadingBar.jsx';
+import { socketService } from './services/index.js';
 
 // Layouts
 import AppLayout from './components/layout/AppLayout.jsx';
@@ -119,6 +121,7 @@ function PublicRoute() {
 }
 
 export default function App() {
+  const { isAuthenticated, user } = useAuthStore();
   const [showSplash, setShowSplash] = useState(() => {
     const isMobileApp = window.matchMedia('(max-width: 1023px)').matches
       || window.matchMedia('(display-mode: standalone)').matches;
@@ -133,11 +136,36 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [showSplash]);
 
+  useEffect(() => {
+    const token = localStorage.getItem('olc_token');
+    if (!isAuthenticated || !token) {
+      socketService.disconnect();
+      return undefined;
+    }
+    const bridge = (eventName) => (detail) => {
+      window.dispatchEvent(new CustomEvent(`olc:socket:${eventName}`, { detail }));
+    };
+    socketService.connect(
+      token,
+      bridge('connect'),
+      bridge('disconnect'),
+      bridge('new_message'),
+      bridge('new_inquiry'),
+      bridge('new_quotation'),
+      bridge('contact_shared'),
+      bridge('typing'),
+      bridge('stop_typing'),
+      bridge('presence'),
+    );
+    return () => socketService.disconnect();
+  }, [isAuthenticated, user?.id]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AnimatePresence>{showSplash && <AppSplash key="app-splash" />}</AnimatePresence>
         <PwaInstallPrompt />
+        <GlobalLoadingBar />
         <ScrollToTop />
         <NetworkStatus />
         <Toaster

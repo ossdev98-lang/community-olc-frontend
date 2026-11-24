@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FileText, MessageSquare, Bell, Clock, Plus, ArrowRight, TrendingUp, Users } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import { requirementService, inquiryService, shopService, notificationService } from '../../services/index.js';
 import Card from '../../components/ui/Card.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
@@ -68,7 +69,7 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading dashboard…" />;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

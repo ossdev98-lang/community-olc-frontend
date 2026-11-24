@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { SPECIALIZATIONS, BUSINESS_TYPES } from '../../constants/index.js';
 import { toast } from 'sonner';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 
 const TABS = [
   { id: 'account', label: 'My Account', icon: User },
@@ -83,7 +84,7 @@ export default function ProfilePage() {
     });
   }, [shop]);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading your profile…" />;
   const handleSave = async () => {
     setSaving(true);
     try {

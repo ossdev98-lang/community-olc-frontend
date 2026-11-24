@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, CheckCircle, MessageSquare, Phone, Calendar, FileText } from 'lucide-react';
 import { shopService, requirementService } from '../../services/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import { useAuthStore } from '../../store/authStore.js';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
@@ -36,7 +37,7 @@ export default function ShopProfilePage() {
     })();
   }, [id]);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading shop profile…" />;
   if (!shop) return (
     <div style={{ textAlign: 'center', padding: 60 }}>
       <p style={{ color: '#718096', marginBottom: 16 }}>Shop not found</p>

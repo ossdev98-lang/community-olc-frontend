@@ -7,6 +7,7 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import { formatTimeAgo } from '../../utils/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 
 const ICON_MAP = {
   new_inquiry: { icon: MessageSquare, color: '#176FA9', bg: '#EAF3F9' },
@@ -74,7 +75,7 @@ export default function NotificationsPage() {
     if (notif.link) navigate(notif.link);
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading notifications…" />;
 
   return (
     <div className="notifications-page" style={{ maxWidth: 700 }}>

@@ -5,8 +5,16 @@ export const authService = {
     const res = await api.post('/auth/login', { email, password });
     return res.data;
   },
-  register: async (data) => {
-    const res = await api.post('/auth/register', data);
+  register: async (data, logo = null) => {
+    let payload = data;
+    if (logo) {
+      payload = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        payload.append(key, ['specializations', 'businessType'].includes(key) ? JSON.stringify(value) : value);
+      });
+      payload.append('logo', logo);
+    }
+    const res = await api.post('/auth/register', payload, logo ? { headers: { 'Content-Type': undefined } } : undefined);
     return res.data;
   },
   me: async () => {

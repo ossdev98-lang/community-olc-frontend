@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, EyeOff, Eye, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { adminService } from '../../services/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { formatTimeAgo, formatTimeRemaining, getUrgencyStyles } from '../../utils/index.js';
@@ -54,7 +55,7 @@ export default function AdminPostsPage() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading posts…" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>

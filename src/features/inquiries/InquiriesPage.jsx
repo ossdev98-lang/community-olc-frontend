@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Send, Paperclip, Phone, ArrowLeft, MessageSquare, CheckCheck, Check, AlertCircle, Package, X } from 'lucide-react';
-import { requirementService, inquiryService, shopService, authService } from '../../services/index.js';
+import { requirementService, inquiryService, shopService, authService, socketService } from '../../services/index.js';
 import { useAuthStore } from '../../store/authStore.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { formatTimeAgo } from '../../utils/index.js';
@@ -28,6 +29,62 @@ function QuotationCard({ q }) {
   );
 }
 
+function participantDetails(user, shopOverride = null) {
+  const shop = shopOverride || user?.shops?.[0] || user?.shop || null;
+  return {
+    shopName: shop?.shop_name || user?.shopName || user?.name || 'Unknown shop',
+    ownerName: shop?.owner_name || user?.name || 'Unknown owner',
+  };
+}
+
+const participantShopCache = new Map();
+
+function useParticipantDetails(user, shopId) {
+  const [details, setDetails] = useState(() => participantDetails(user));
+
+  useEffect(() => {
+    let cancelled = false;
+    setDetails(participantDetails(user));
+    if (!user) return () => { cancelled = true; };
+
+    const cacheKey = `${user.id || user.email || user.name}:${shopId || ''}`;
+    let lookup = participantShopCache.get(cacheKey);
+    if (!lookup) {
+      lookup = (async () => {
+        const embeddedShop = user.shops?.[0] || user.shop;
+        if (embeddedShop?.shop_name) return embeddedShop;
+
+        if (shopId) {
+          try {
+            const response = await shopService.get(shopId);
+            const data = response.data?.data ?? response.data;
+            const shop = data.shop ?? data;
+            if (shop?.shop_name) return shop;
+          } catch { /* Try matching the participant by owner name below. */ }
+        }
+
+        try {
+          const response = await shopService.list({ search: user.name, limit: 100 });
+          const data = response.data?.data ?? response.data;
+          const shops = data.shops ?? [];
+          const participantEmail = user.email?.toLowerCase();
+          const participantName = user.name?.trim().toLowerCase();
+          return shops.find(shop => (participantEmail && shop.email?.toLowerCase() === participantEmail)
+            || (participantName && shop.owner_name?.trim().toLowerCase() === participantName)) || null;
+        } catch { return null; }
+      })();
+      participantShopCache.set(cacheKey, lookup);
+    }
+
+    lookup.then(shop => {
+      if (!cancelled && shop) setDetails(participantDetails(user, shop));
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, user?.email, user?.name, shopId]);
+
+  return details;
+}
+
 function MessageBubble({ msg, isOwn, userName }) {
   return (
     <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
@@ -49,16 +106,17 @@ function MessageBubble({ msg, isOwn, userName }) {
 
 function ConversationItem({ conv, active, onClick, userId }) {
   const other = conv.owner_user_id == userId ? conv.interestedUser : conv.owner;
-  const otherName = other?.name || 'Unknown Shop';
+  const { shopName, ownerName } = useParticipantDetails(other, conv.requirement?.shop_id);
   const unread = conv.unreadCount || 0;
   return (
     <div onClick={onClick} style={{ display: 'flex', gap: 12, padding: '14px 16px', cursor: 'pointer', background: active ? '#EAF3F9' : 'transparent', borderLeft: `3px solid ${active ? '#176FA9' : 'transparent'}`, borderBottom: '1px solid #F4F7FA', transition: 'background 0.15s' }}>
-      <Avatar name={otherName} size={44} />
+      <Avatar name={shopName} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 14, fontWeight: unread > 0 ? 700 : 600, color: '#152536', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>{otherName}</span>
+          <span style={{ fontSize: 14, fontWeight: unread > 0 ? 700 : 600, color: '#152536', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>{shopName}</span>
           <span style={{ fontSize: 11, color: '#A0AEC0', flexShrink: 0 }}>{formatTimeAgo(conv.last_message_at)}</span>
         </div>
+        <p style={{ margin: '0 0 3px', fontSize: 11, color: '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Owner: {ownerName}</p>
         <p style={{ margin: '0 0 2px', fontSize: 13, color: '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.last_message || 'No messages yet'}</p>
         <p style={{ margin: 0, fontSize: 11, color: '#A0AEC0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.requirement?.title || ''}</p>
       </div>
@@ -67,14 +125,17 @@ function ConversationItem({ conv, active, onClick, userId }) {
   );
 }
 
-function ChatView({ convId, onBack, isMobile, userId }) {
+function ChatView({ convId, onBack, isMobile, userId, userName }) {
   const [conv, setConv] = useState(null);
   const [message, setMessage] = useState('');
   const [showQForm, setShowQForm] = useState(false);
   const [quotation, setQuotation] = useState({ productName: '', modelNumber: '', quantityAvailable: '', pricePerUnit: '', condition: 'New', warranty: '', message: '' });
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const [otherShop, setOtherShop] = useState({ name: 'Shop' });
+  const typingTimeoutRef = useRef(null);
+  const [otherUser, setOtherUser] = useState(null);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const otherShop = useParticipantDetails(otherUser, conv?.requirement?.shop_id);
   const [isExpired, setIsExpired] = useState(false);
   const [contactShared, setContactShared] = useState(false);
 
@@ -85,7 +146,7 @@ function ChatView({ convId, onBack, isMobile, userId }) {
       const c = data.conversation ?? data;
       setConv(c);
       const other = c.owner_user_id == userId ? c.interestedUser : c.owner;
-      setOtherShop({ name: other?.name || 'Shop' });
+      setOtherUser(other);
       if (c.requirement) {
         setIsExpired(c.requirement.status === 'EXPIRED' || new Date(c.requirement.expires_at) <= Date.now());
       }
@@ -98,15 +159,44 @@ function ChatView({ convId, onBack, isMobile, userId }) {
 
   useEffect(() => { loadConv(); }, [convId]);
   useEffect(() => {
+    socketService.joinConversation(convId);
+    const handleNewMessage = (event) => {
+      if (String(event.detail?.conversationId) === String(convId)) loadConv();
+    };
+    const handleNewQuotation = (event) => {
+      if (String(event.detail?.conversationId) === String(convId)) loadConv();
+    };
+    const handleTyping = (event) => {
+      if (String(event.detail?.conversationId) === String(convId) && String(event.detail?.userId) !== String(userId)) setOtherTyping(true);
+    };
+    const handleStopTyping = (event) => {
+      if (String(event.detail?.conversationId) === String(convId) && String(event.detail?.userId) !== String(userId)) setOtherTyping(false);
+    };
+    window.addEventListener('olc:socket:new_message', handleNewMessage);
+    window.addEventListener('olc:socket:new_quotation', handleNewQuotation);
+    window.addEventListener('olc:socket:typing', handleTyping);
+    window.addEventListener('olc:socket:stop_typing', handleStopTyping);
+    return () => {
+      socketService.leaveConversation(convId);
+      window.removeEventListener('olc:socket:new_message', handleNewMessage);
+      window.removeEventListener('olc:socket:new_quotation', handleNewQuotation);
+      window.removeEventListener('olc:socket:typing', handleTyping);
+      window.removeEventListener('olc:socket:stop_typing', handleStopTyping);
+      window.clearTimeout(typingTimeoutRef.current);
+    };
+  }, [convId, userId]);
+  useEffect(() => {
     const messagesContainer = messagesContainerRef.current;
     if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }, [conv?.messages?.length]);
 
   const req = conv?.requirement;
-  const senderName = conv?.owner?.name || '';
+  const senderName = otherShop.ownerName;
 
   const sendMessage = async () => {
     if (!message.trim() || !conv) return;
+    socketService.stopTyping(convId, userId);
+    window.clearTimeout(typingTimeoutRef.current);
     try {
       await inquiryService.messages.send(convId, null, message.trim(), 'TEXT');
       setMessage('');
@@ -143,10 +233,11 @@ function ChatView({ convId, onBack, isMobile, userId }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: isMobile ? '100%' : '100%', minHeight: 0, overflow: 'hidden', background: '#fff' }}>
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5EAF0', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {isMobile && <button onClick={onBack} style={{ background: '#F4F7FA', border: 'none', borderRadius: 9, padding: 8, cursor: 'pointer', display: 'flex', color: '#152536', flexShrink: 0 }}><ArrowLeft size={18} /></button>}
-        <Avatar name={otherShop.name} size={38} />
+        <Avatar name={otherShop.shopName} size={38} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#152536', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherShop.name}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Re: {conv.requirement?.title || ''}</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#152536', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherShop.shopName}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Owner: {otherShop.ownerName}</p>
+          <p style={{ margin: 0, fontSize: 10, color: '#A0AEC0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Re: {conv.requirement?.title || ''}</p>
         </div>
         {!contactShared ? (
           <button onClick={() => { toast.success('Contact shared!'); }} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600, background: '#EAF3F9', color: '#176FA9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
@@ -164,6 +255,7 @@ function ChatView({ convId, onBack, isMobile, userId }) {
 
       <div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }} className="no-scrollbar">
         {conv.messages.map(msg => <MessageBubble key={msg.id} msg={msg} isOwn={msg.sender_user_id == userId} userName={senderName} />)}
+        {otherTyping && <p style={{ margin: '4px 0 12px', fontSize: 12, color: '#718096', fontStyle: 'italic' }}>Typing…</p>}
         <div ref={messagesEndRef} />
       </div>
 
@@ -188,7 +280,17 @@ function ChatView({ convId, onBack, isMobile, userId }) {
       <div className="chat-composer" style={{ padding: '10px 12px', borderTop: '1px solid #E5EAF0', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0, background: '#fff' }}>
         <button onClick={() => setShowQForm(!showQForm)} style={{ padding: 9, borderRadius: 10, background: '#F4F7FA', border: 'none', cursor: 'pointer', display: 'flex', color: '#718096', flexShrink: 0 }} title="Send Quotation"><Package size={18} /></button>
         <button style={{ padding: 9, borderRadius: 10, background: '#F4F7FA', border: 'none', cursor: 'pointer', display: 'flex', color: '#718096', flexShrink: 0 }}><Paperclip size={18} /></button>
-        <input value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()} placeholder="Type a message..." className="input-field" style={{ flex: 1, fontSize: 14 }} />
+        <input value={message} onChange={e => {
+          setMessage(e.target.value);
+          if (e.target.value.trim()) {
+            socketService.typing(convId, userId, userName);
+            window.clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = window.setTimeout(() => socketService.stopTyping(convId, userId), 900);
+          } else {
+            socketService.stopTyping(convId, userId);
+            window.clearTimeout(typingTimeoutRef.current);
+          }
+        }} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()} placeholder="Type a message..." className="input-field" style={{ flex: 1, fontSize: 14 }} />
         <button onClick={sendMessage} disabled={!message.trim()} style={{ padding: 9, borderRadius: 10, border: 'none', cursor: message.trim() ? 'pointer' : 'not-allowed', background: message.trim() ? 'linear-gradient(135deg,#176FA9,#21AFA9)' : '#E5EAF0', color: message.trim() ? '#fff' : '#A0AEC0', display: 'flex', flexShrink: 0 }}><Send size={18} /></button>
       </div>
     </div>
@@ -207,19 +309,28 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile(768);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await inquiryService.list();
       const data = res.data?.data ?? res.data;
       setConversations(data.conversations ?? []);
     } catch (err) {
-      setConversations([]);
+      if (!silent) setConversations([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const refreshConversations = () => load(true);
+    window.addEventListener('olc:socket:new_inquiry', refreshConversations);
+    window.addEventListener('olc:socket:new_message', refreshConversations);
+    return () => {
+      window.removeEventListener('olc:socket:new_inquiry', refreshConversations);
+      window.removeEventListener('olc:socket:new_message', refreshConversations);
+    };
+  }, []);
 
   useEffect(() => {
     if (id && id !== 'new') { setActiveId(id); setShowChat(true); inquiryService.markRead(id).then(() => load()); navigate(`/inquiries/${id}`); }
@@ -257,13 +368,13 @@ export default function InquiriesPage() {
 
   const handleBack = () => { setShowChat(false); setActiveId(null); navigate('/inquiries'); };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading inquiries…" />;
 
   if (isMobile) {
     if (showChat && activeId) {
       return (
         <div className="inquiry-mobile-chat" style={{ margin: '0 -12px', height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))', minHeight: 0 }}>
-          <ChatView convId={activeId} onBack={handleBack} isMobile={true} userId={user.id} />
+          <ChatView convId={activeId} onBack={handleBack} isMobile={true} userId={user.id} userName={user.name} />
         </div>
       );
     }
@@ -310,7 +421,7 @@ export default function InquiriesPage() {
       </div>
       {activeId ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <ChatView convId={activeId} isMobile={false} userId={user.id} />
+          <ChatView convId={activeId} isMobile={false} userId={user.id} userName={user.name} />
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, CheckCircle, ArrowLeft, Eye } from 'lucide-react';
+import { Upload, X, CheckCircle, ArrowLeft, Eye, ChevronDown } from 'lucide-react';
 import { requirementService, uploadService } from '../../services/index.js';
-import { CATEGORIES, CONDITIONS } from '../../constants/index.js';
+import { CATEGORIES, CONDITIONS, DURATIONS } from '../../constants/index.js';
 import Input from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Card from '../../components/ui/Card.jsx';
 import { toast } from 'sonner';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 
 export default function CreateRequirementPage({ editMode = false }) {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ export default function CreateRequirementPage({ editMode = false }) {
   const [preview, setPreview] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const categoryPickerRef = useRef(null);
+  const [durationOpen, setDurationOpen] = useState(false);
+  const durationPickerRef = useRef(null);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [form, setForm] = useState({
@@ -62,9 +65,13 @@ export default function CreateRequirementPage({ editMode = false }) {
   useEffect(() => {
     const closeOnOutsideClick = (event) => {
       if (!categoryPickerRef.current?.contains(event.target)) setCategoryOpen(false);
+      if (!durationPickerRef.current?.contains(event.target)) setDurationOpen(false);
     };
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setCategoryOpen(false);
+      if (event.key === 'Escape') {
+        setCategoryOpen(false);
+        setDurationOpen(false);
+      }
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
     document.addEventListener('touchstart', closeOnOutsideClick);
@@ -127,7 +134,7 @@ export default function CreateRequirementPage({ editMode = false }) {
     return uploadService.serve('requirements', path.replace(/\\/g, '/').split('/').pop());
   };
 
-  if (pageLoading) return <div style={{ padding: 24, color: '#718096' }}>Loading requirement…</div>;
+  if (pageLoading) return <LoadingState label="Loading requirement…" />;
 
   return (
     <div className="create-requirement-page" style={{ maxWidth: 720 }}>
@@ -161,7 +168,7 @@ export default function CreateRequirementPage({ editMode = false }) {
                   <span className={form.category ? '' : 'category-picker-placeholder'}>
                     {cats.find(category => category.id === form.category)?.label || 'Select a category'}
                   </span>
-                  <span className="category-picker-chevron" aria-hidden="true">⌄</span>
+                  <ChevronDown className="category-picker-chevron" aria-hidden="true" size={16} style={{ display: 'block', flexShrink: 0, marginLeft: 'auto' }} />
                 </button>
                 {categoryOpen && (
                   <ul className="category-picker-list" role="listbox" aria-labelledby="requirement-category-label">
@@ -238,7 +245,40 @@ export default function CreateRequirementPage({ editMode = false }) {
             <div className="requirement-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Input label="Expected Price (Optional)" value={form.expectedPrice} onChange={e => set('expectedPrice', e.target.value)} placeholder="e.g. ₹3,500 - ₹4,200" hint="Leave blank if flexible" />
               <Input label="Location" value={form.location} onChange={e => set('location', e.target.value)} placeholder="City" />
-              <Input label="Duration (hours)" type="number" min="1" value={form.duration} onChange={e => set('duration', parseInt(e.target.value) || 24)} placeholder="24" hint="How long the requirement stays active" />
+              <div>
+                <label id="requirement-duration-label" style={{ fontSize: 13, fontWeight: 600, color: '#152536', display: 'block', marginBottom: 5 }}>Duration (hours)</label>
+                <div className="category-picker" ref={durationPickerRef}>
+                  <button
+                    type="button"
+                    className={`category-picker-trigger${durationOpen ? ' is-open' : ''}`}
+                    aria-labelledby="requirement-duration-label"
+                    aria-haspopup="listbox"
+                    aria-expanded={durationOpen}
+                    onClick={() => setDurationOpen(open => !open)}
+                  >
+                    <span>{form.duration} hours</span>
+                    <ChevronDown className="category-picker-chevron" aria-hidden="true" size={16} style={{ display: 'block', flexShrink: 0, marginLeft: 'auto' }} />
+                  </button>
+                  {durationOpen && (
+                    <ul className="category-picker-list" role="listbox" aria-labelledby="requirement-duration-label">
+                      {DURATIONS.map(({ value }) => (
+                        <li key={value} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={Number(form.duration) === value}
+                            className={`category-picker-option${Number(form.duration) === value ? ' is-selected' : ''}`}
+                            onClick={() => { set('duration', value); setDurationOpen(false); }}
+                          >
+                            {value} hours
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <p style={{ fontSize: 12, color: '#A0AEC0', margin: '4px 0 0' }}>How long the requirement stays active</p>
+              </div>
             </div>
           </div>
         </Card>

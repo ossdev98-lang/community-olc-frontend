@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Phone, Mail, Lock, Building, MapPin, FileText, CheckCircle, ArrowRight, ArrowLeft, Upload } from 'lucide-react';
@@ -13,7 +13,7 @@ const STEPS = ['Owner Details', 'Business Details', 'Shop Profile', 'Review & Su
 
 const initialForm = {
   ownerName: '', mobile: '', email: '', password: '',
-  shopName: '', businessType: '', city: '', state: '', address: '', gstin: '',
+  shopName: '', businessType: [], city: '', state: '', address: '', gstin: '',
   specializations: [], description: '',
 };
 
@@ -24,6 +24,19 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [logo, setLogo] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const logoInput = useRef(null);
+  const [businessTypeOpen, setBusinessTypeOpen] = useState(false);
+  const businessTypeRef = useRef(null);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!businessTypeRef.current?.contains(event.target)) setBusinessTypeOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, []);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -37,7 +50,7 @@ export default function RegisterPage() {
     }
     if (step === 1) {
       if (!form.shopName) e.shopName = 'Required';
-      if (!form.businessType) e.businessType = 'Required';
+      if (!form.businessType.length) e.businessType = 'Select at least one business type';
       if (!form.city) e.city = 'Required';
       if (!form.state) e.state = 'Required';
       if (!form.address) e.address = 'Required';
@@ -66,7 +79,7 @@ export default function RegisterPage() {
         gstin: form.gstin,
         description: form.description,
         specializations: form.specializations,
-      });
+      }, logo);
       setSubmitted(true);
     } catch (err) {
       setErrors({ _server: err.response?.data?.message || 'Registration failed' });
@@ -178,10 +191,24 @@ export default function RegisterPage() {
             <Input className="register-input-with-icon" label="Shop Name" value={form.shopName} onChange={e => set('shopName', e.target.value)} error={errors.shopName} icon={<Building size={16} />} required placeholder="Your shop name" />
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#152536', display: 'block', marginBottom: 5 }}>Business Type <span style={{ color: '#DC2626' }}>*</span></label>
-              <select value={form.businessType} onChange={e => set('businessType', e.target.value)} className="input-field" style={{ appearance: 'none' }}>
-                <option value="">Select business type</option>
-                {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <p style={{ fontSize: 12, color: '#718096', margin: '0 0 9px' }}>Select all that apply</p>
+              <div ref={businessTypeRef} style={{ position: 'relative' }}>
+                <button type="button" aria-haspopup="listbox" aria-expanded={businessTypeOpen} onClick={() => setBusinessTypeOpen(open => !open)} className="input-field" style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', cursor: 'pointer', background: '#fff', color: form.businessType.length ? '#263746' : '#718096' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.businessType.length ? `${form.businessType.length} selected: ${form.businessType.join(', ')}` : 'Select business type'}</span>
+                  <span aria-hidden="true" style={{ marginLeft: 10, color: '#718096', transform: businessTypeOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>▾</span>
+                </button>
+                {businessTypeOpen && <ul aria-label="Business types" className="register-business-type-menu" style={{ position: 'absolute', zIndex: 20, top: 'calc(100% + 5px)', left: 0, right: 0, maxHeight: 230, overflowY: 'auto', margin: 0, padding: 5, listStyle: 'none', background: '#fff', border: '1px solid #DCE4EC', borderRadius: 10, boxShadow: '0 10px 24px rgba(21,37,54,0.14)' }}>
+                  {BUSINESS_TYPES.map(t => {
+                    const selected = form.businessType.includes(t);
+                    return <li key={t}>
+                      <button type="button" aria-pressed={selected} onClick={() => set('businessType', selected ? form.businessType.filter(type => type !== t) : [...form.businessType, t])} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', border: 0, borderRadius: 7, background: selected ? '#EAF3F9' : '#fff', color: selected ? '#176FA9' : '#34495A', textAlign: 'left', fontSize: 13, fontWeight: selected ? 600 : 500, cursor: 'pointer' }}>
+                        <span aria-hidden="true" style={{ width: 16, height: 16, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${selected ? '#176FA9' : '#B8C4D0'}`, borderRadius: 4, background: selected ? '#176FA9' : '#fff', color: '#fff', fontSize: 11 }}>{selected ? '✓' : ''}</span>
+                        {t}
+                      </button>
+                    </li>;
+                  })}
+                </ul>}
+              </div>
               {errors.businessType && <p style={{ fontSize: 12, color: '#DC2626', margin: '4px 0 0' }}>{errors.businessType}</p>}
             </div>
             <div className="register-fields-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -226,11 +253,23 @@ export default function RegisterPage() {
                 style={{ resize: 'vertical' }}
               />
             </div>
-            <div className="register-upload" style={{ border: '2px dashed #E5EAF0', borderRadius: 12, padding: 24, textAlign: 'center', cursor: 'pointer', background: '#F9FAFB' }}>
-              <Upload size={24} color="#A0AEC0" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontSize: 13, color: '#718096' }}>Upload Shop Logo (Optional)</p>
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#A0AEC0' }}>PNG, JPG up to 2MB</p>
-            </div>
+            <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                setErrors({ logo: 'Choose a PNG, JPG, or WEBP image.' }); e.target.value = ''; return;
+              }
+              if (file.size > 2 * 1024 * 1024) {
+                setErrors({ logo: 'Logo must be 2MB or smaller.' }); e.target.value = ''; return;
+              }
+              setErrors({}); setLogo(file); setLogoPreview(URL.createObjectURL(file));
+            }} />
+            <button type="button" className="register-upload" onClick={() => logoInput.current?.click()} style={{ width: '100%', border: '2px dashed #E5EAF0', borderRadius: 12, padding: 24, textAlign: 'center', cursor: 'pointer', background: '#F9FAFB', color: 'inherit' }}>
+              {logoPreview ? <img src={logoPreview} alt="Shop logo preview" style={{ width: 72, height: 72, objectFit: 'contain', margin: '0 auto 8px' }} /> : <Upload size={24} color="#A0AEC0" style={{ margin: '0 auto 8px' }} />}
+              <p style={{ margin: 0, fontSize: 13, color: '#718096' }}>{logo ? logo.name : 'Upload Shop Logo (Optional)'}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#A0AEC0' }}>PNG, JPG up to 2MB · Click to choose or replace</p>
+            </button>
+            {errors.logo && <p style={{ margin: '-12px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.logo}</p>}
           </div>
         )}
 
@@ -247,7 +286,7 @@ export default function RegisterPage() {
             </div>
             <div className="register-review-panel" style={{ background: '#F4F7FA', borderRadius: 12, padding: 20 }}>
               <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#152536' }}>Business Details</p>
-              {[['Shop Name', form.shopName], ['Type', form.businessType], ['City', form.city], ['State', form.state]].map(([k, v]) => (
+              {[['Shop Name', form.shopName], ['Type', form.businessType.join(', ')], ['City', form.city], ['State', form.state]].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, color: '#718096' }}>{k}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#152536' }}>{v}</span>

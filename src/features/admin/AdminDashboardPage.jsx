@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Store, Users, FileText, MessageSquare, TrendingUp, Clock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { adminService } from '../../services/index.js';
+import LoadingState from '../../components/feedback/LoadingState.jsx';
 import Card from '../../components/ui/Card.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
@@ -88,7 +89,7 @@ export default function AdminDashboardPage() {
     })();
   }, []);
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading admin dashboard…" />;
 
   const statCards = [
     { icon: Store, label: 'Total Shops', value: stats.totalShops, sub: `${stats.approvedShops} approved`, color: '#176FA9', bg: '#EAF3F9', trend: '+3 this week' },

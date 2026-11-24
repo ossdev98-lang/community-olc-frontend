@@ -56,7 +56,7 @@ export default function MobileProfileMenuPage() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ border: '3px solid rgba(255,255,255,0.3)', borderRadius: '50%' }}>
-            <Avatar name={user?.ownerName || user?.name} size={56} />
+            <Avatar name={user?.ownerName || user?.name} src={user?.shop?.logo || user?.logo} size={56} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
