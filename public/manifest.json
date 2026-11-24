@@ -11,16 +11,10 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='192' y2='192'><stop offset='0%25' stop-color='%23176FA9'/><stop offset='100%25' stop-color='%2321AFA9'/></linearGradient></defs><text x='96' y='125' text-anchor='middle' fill='white' font-size='72' font-weight='800' font-family='Arial'>OLC</text></svg>",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='512' y2='512'><stop offset='0%25' stop-color='%23176FA9'/><stop offset='100%25' stop-color='%2321AFA9'/></linearGradient></defs><text x='256' y='330' text-anchor='middle' fill='white' font-size='190' font-weight='800' font-family='Arial'>OLC</text></svg>",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/ozone_lapcare_icon_transparent.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "screenshots": [],
