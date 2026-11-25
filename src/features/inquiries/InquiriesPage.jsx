@@ -380,7 +380,13 @@ export default function InquiriesPage() {
   }, []);
 
   useEffect(() => {
-    if (id && id !== 'new') { setActiveId(id); setShowChat(true); inquiryService.markRead(id).then(() => load()); navigate(`/inquiries/${id}`); }
+    if (id && id !== 'new') {
+      setActiveId(id);
+      setShowChat(true);
+      // Refresh silently: a pending mark-read must not put the list back into
+      // its blocking loading screen if the user returns while it is in flight.
+      inquiryService.markRead(id).then(() => load(true)).catch(() => {});
+    }
   }, [id]);
 
   useEffect(() => {
