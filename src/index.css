@@ -401,7 +401,7 @@ button { touch-action: manipulation; }
 /* App shell and mobile PWA finish */
 .app-shell { background: #F4F7FA; min-height: 100vh; min-height: 100dvh; }
 .app-shell-mobile { display: flex; flex-direction: column; }
-.app-shell-chat { height: 100dvh; overflow: hidden; }
+.app-shell-chat { position: fixed; inset: 0 auto auto 0; width: 100%; height: var(--chat-viewport-height, 100dvh); min-height: 0; overflow: hidden; }
 .app-shell-chat, body:has(.app-shell-chat) { background: #fff; }
 .app-shell-desktop { display: flex; }
 .app-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
