@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, CheckCircle, ArrowLeft, Eye, ChevronDown } from 'lucide-react';
+import { Upload, X, CheckCircle, ArrowLeft, Eye, ChevronDown, MapPin, Package, Clock } from 'lucide-react';
 import { requirementService, uploadService } from '../../services/index.js';
-import { CATEGORIES, CONDITIONS, DURATIONS } from '../../constants/index.js';
+import { CATEGORIES, CONDITIONS, DURATIONS, CATEGORY_COLORS } from '../../constants/index.js';
 import Input from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Card from '../../components/ui/Card.jsx';
 import { toast } from 'sonner';
 import LoadingState from '../../components/feedback/LoadingState.jsx';
+import Badge from '../../components/ui/Badge.jsx';
 
 export default function CreateRequirementPage({ editMode = false }) {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function CreateRequirementPage({ editMode = false }) {
   const [durationOpen, setDurationOpen] = useState(false);
   const durationPickerRef = useRef(null);
   const [images, setImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [form, setForm] = useState({
     title: '', category: '', productName: '', modelNumber: '',
@@ -28,6 +30,12 @@ export default function CreateRequirementPage({ editMode = false }) {
     expectedPrice: '', location: '', duration: 24,
   });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const urls = images.map(file => URL.createObjectURL(file));
+    setImagePreviews(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [images]);
 
   useEffect(() => {
     if (!editMode || !id) return undefined;
@@ -135,6 +143,39 @@ export default function CreateRequirementPage({ editMode = false }) {
   };
 
   if (pageLoading) return <LoadingState label="Loading requirement…" variant="form" />;
+
+  if (preview) {
+    const categoryColor = CATEGORY_COLORS[form.category] || CATEGORY_COLORS.Other;
+    const previewImages = [...existingImages.map(imageUrl), ...imagePreviews].filter(Boolean);
+    return (
+      <div className="create-requirement-page" style={{ maxWidth: 720 }}>
+        <div className="create-requirement-heading" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <button type="button" onClick={() => setPreview(false)} aria-label="Back to editing" style={{ background: '#F4F7FA', border: 'none', borderRadius: 10, padding: 9, cursor: 'pointer', display: 'flex', color: '#718096' }}><ArrowLeft size={18} /></button>
+          <div><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: 'Manrope, sans-serif', color: '#152536' }}>Preview Requirement</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: '#718096' }}>This is how your post will appear to the community</p></div>
+        </div>
+        <Card>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {form.category && <span style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: categoryColor.bg, color: categoryColor.text }}>{form.category}</span>}
+            {form.condition && <Badge>{form.condition}</Badge>}
+          </div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 21, fontWeight: 800, color: '#152536', fontFamily: 'Manrope, sans-serif' }}>{form.title || 'Requirement title'}</h2>
+          {form.productName && <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#526579' }}>{form.productName}{form.modelNumber ? ` · ${form.modelNumber}` : ''}</p>}
+          <p style={{ margin: '0 0 18px', fontSize: 14, color: '#718096', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{form.description || 'Your description will appear here.'}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+            <Badge><Package size={12} /> Qty: {form.quantity || 1}</Badge>
+            {form.location && <Badge><MapPin size={12} /> {form.location}</Badge>}
+            <Badge><Clock size={12} /> {form.duration} hours</Badge>
+            {form.expectedPrice && <Badge>Expected price: {form.expectedPrice}</Badge>}
+          </div>
+          {previewImages.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 18 }}>{previewImages.map((src, index) => <img key={`${src}-${index}`} src={src} alt={`Requirement preview ${index + 1}`} style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 10, border: '1px solid #E5EAF0' }} />)}</div>}
+          <div style={{ display: 'flex', gap: 10, borderTop: '1px solid #F1F4F7', paddingTop: 16 }}>
+            <Button type="button" variant="secondary" onClick={() => setPreview(false)} icon={<ArrowLeft size={15} />}>Edit Details</Button>
+            <Button type="button" onClick={handleSubmit} loading={loading} fullWidth icon={<CheckCircle size={15} />}>{editMode ? 'Save Changes' : 'Post Requirement'}</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="create-requirement-page" style={{ maxWidth: 720 }}>
@@ -308,9 +349,9 @@ export default function CreateRequirementPage({ editMode = false }) {
           )}
           {images.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              {images.map((f, i) => (
+              {images.map((_, i) => (
                 <div key={i} style={{ position: 'relative', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5EAF0' }}>
-                  <img src={URL.createObjectURL(f)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  <img src={imagePreviews[i]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                   <button onClick={() => setImages(images.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: 2, right: 2, background: '#DC2626', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10 }}><X size={10} /></button>
                 </div>
               ))}
