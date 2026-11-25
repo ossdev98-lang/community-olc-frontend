@@ -32,6 +32,7 @@ import NotificationsPage from './features/notifications/NotificationsPage.jsx';
 import ProfilePage from './features/profile/ProfilePage.jsx';
 import HelpPage from './features/profile/HelpPage.jsx';
 import MobileProfileMenuPage from './features/profile/MobileProfileMenuPage.jsx';
+import SettingsPage from './features/profile/SettingsPage.jsx';
 
 // Admin pages
 import AdminDashboardPage from './features/admin/AdminDashboardPage.jsx';
@@ -199,7 +200,12 @@ export default function App() {
               <Route path="/saved" element={<PageWrapper><SavedPostsPage /></PageWrapper>} />
               <Route path="/notifications" element={<PageWrapper><NotificationsPage /></PageWrapper>} />
               <Route path="/profile" element={<PageWrapper><ProfilePage /></PageWrapper>} />
-              <Route path="/settings" element={<PageWrapper><ProfilePage /></PageWrapper>} />
+              <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
+              <Route path="/settings/account" element={<PageWrapper><ProfilePage settingSection="account" /></PageWrapper>} />
+              <Route path="/settings/shop" element={<PageWrapper><ProfilePage settingSection="shop" /></PageWrapper>} />
+              <Route path="/settings/privacy" element={<PageWrapper><ProfilePage settingSection="privacy" /></PageWrapper>} />
+              <Route path="/settings/notifications" element={<PageWrapper><ProfilePage settingSection="notifications" /></PageWrapper>} />
+              <Route path="/settings/preferences" element={<PageWrapper><ProfilePage settingSection="preferences" /></PageWrapper>} />
               <Route path="/help" element={<PageWrapper><HelpPage /></PageWrapper>} />
               <Route path="/menu" element={<PageWrapper><MobileProfileMenuPage /></PageWrapper>} />
             </Route>

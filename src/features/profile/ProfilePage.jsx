@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Building, Lock, Bell, Shield, Palette, Camera, Save, CheckCircle } from 'lucide-react';
+import { Save, CheckCircle, ArrowLeft, Edit2, X, Camera } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { authService, shopService } from '../../services/index.js';
 import Avatar from '../../components/ui/Avatar.jsx';
@@ -12,18 +13,17 @@ import { SPECIALIZATIONS, BUSINESS_TYPES } from '../../constants/index.js';
 import { toast } from 'sonner';
 import LoadingState from '../../components/feedback/LoadingState.jsx';
 
-const TABS = [
-  { id: 'account', label: 'My Account', icon: User },
-  { id: 'shop', label: 'My Shop', icon: Building },
-  { id: 'privacy', label: 'Privacy', icon: Shield },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'preferences', label: 'Preferences', icon: Palette },
-];
+const SETTING_TITLES = { account: 'My Account', shop: 'My Shop', privacy: 'Privacy', notifications: 'Notifications', preferences: 'Preferences' };
 
-export default function ProfilePage() {
-  const { user, updateUser, logout } = useAuthStore();
+export default function ProfilePage({ settingSection = null }) {
+  const { user, updateUser } = useAuthStore();
+  const navigate = useNavigate();
   const [shop, setShop] = useState(user);
-  const [activeTab, setActiveTab] = useState('account');
+  const activeTab = settingSection;
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const logoInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [accountForm, setAccountForm] = useState({
@@ -51,6 +51,11 @@ export default function ProfilePage() {
     expiryReminder: true,
     communityUpdates: false,
   });
+
+  useEffect(() => {
+    if (!logoPreview.startsWith('blob:')) return undefined;
+    return () => URL.revokeObjectURL(logoPreview);
+  }, [logoPreview]);
 
   useEffect(() => {
     (async () => {
@@ -100,14 +105,18 @@ export default function ProfilePage() {
         state: shopForm.state,
         specializations: shopForm.specializations,
       };
-      await shopService.update(updates);
+      await shopService.update(updates, logoFile);
       const res = await authService.me();
       const data = res.data?.data ?? res.data;
       setShop(data);
       updateUser(data);
+      setLogoFile(null);
+      setLogoPreview('');
       toast.success('Changes saved successfully!');
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -124,42 +133,71 @@ export default function ProfilePage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: 'Manrope, sans-serif', color: '#152536' }}>Profile & Settings</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#718096' }}>Manage your account and shop information</p>
-      </div>
+        {settingSection ? (
+          <div style={{ marginBottom: 24 }}>
+            <button type="button" onClick={() => navigate('/settings')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0, marginBottom: 12, border: 0, background: 'none', color: '#718096', fontSize: 13, cursor: 'pointer' }}><ArrowLeft size={15} /> Settings</button>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: 'Manrope, sans-serif', color: '#152536' }}>{SETTING_TITLES[settingSection] || 'Settings'}</h1>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 24 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: 'Manrope, sans-serif', color: '#152536' }}>My Profile</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#718096' }}>Your account and shop information</p>
+          </div>
+        )}
 
-      <div className="profile-grid">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Card style={{ marginBottom: 12, textAlign: 'center', padding: 20 }}>
-            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
-              <Avatar name={shop.ownerName} size={64} />
-              <button style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #176FA9, #21AFA9)', border: '2px solid #fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Camera size={11} color="#fff" />
-              </button>
+        {!settingSection ? (
+          <Card style={{ maxWidth: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{ position: 'relative' }}>
+                <Avatar name={editingProfile ? accountForm.ownerName : shop.ownerName} src={logoPreview || shop.shop?.logo || shop.logo} size={64} />
+                {editingProfile && <>
+                  <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={event => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { toast.error('Choose a PNG, JPG, or WEBP logo.'); event.target.value = ''; return; }
+                    if (file.size > 2 * 1024 * 1024) { toast.error('Logo must be 2MB or smaller.'); event.target.value = ''; return; }
+                    setLogoFile(file);
+                    setLogoPreview(URL.createObjectURL(file));
+                  }} />
+                  <button type="button" onClick={() => logoInputRef.current?.click()} aria-label="Update shop logo" title="Update shop logo" style={{ position: 'absolute', right: -3, bottom: -3, width: 26, height: 26, borderRadius: '50%', border: '2px solid #fff', background: 'linear-gradient(135deg, #176FA9, #21AFA9)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Camera size={13} /></button>
+                </>}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#152536' }}>{shop.ownerName || 'Your name'}</p>
+                <p style={{ margin: 0, fontSize: 13, color: '#718096' }}>{shop.shopName || shop.shop_name || 'Shop name not added'}</p>
+                {shop.shop?.is_verified && <div style={{ marginTop: 6 }}><Badge variant="teal" size="xs"><CheckCircle size={10} /> Verified</Badge></div>}
+              </div>
             </div>
-            <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#152536' }}>{shop.ownerName}</p>
-            <p style={{ margin: '0 0 8px', fontSize: 12, color: '#718096' }}>{shop.shopName || shop.shop_name || ''}</p>
-            {shop.shop?.is_verified && <Badge variant="teal" size="xs"><CheckCircle size={10} /> Verified</Badge>}
+            {editingProfile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <Input label="Full Name" value={accountForm.ownerName} onChange={e => setAccountForm(p => ({ ...p, ownerName: e.target.value }))} />
+                <Input label="Email Address" type="email" value={accountForm.email} onChange={e => setAccountForm(p => ({ ...p, email: e.target.value }))} />
+                <Input label="Mobile Number" value={accountForm.mobile} onChange={e => setAccountForm(p => ({ ...p, mobile: e.target.value }))} />
+                <Input label="Shop Name" value={shopForm.name} onChange={e => setShopForm(p => ({ ...p, name: e.target.value }))} />
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <Button type="button" variant="ghost" onClick={() => { setAccountForm({ ownerName: shop.ownerName || '', email: shop.email || '', mobile: shop.mobile || '' }); setShopForm(p => ({ ...p, name: shop.shopName || shop.shop_name || '' })); setLogoFile(null); setLogoPreview(''); setEditingProfile(false); }} icon={<X size={15} />}>Cancel</Button>
+                  <Button onClick={async () => { if (await handleSave()) setEditingProfile(false); }} loading={saving} fullWidth icon={<Save size={15} />}>Save Profile</Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {[
+                  ['Full Name', shop.ownerName],
+                  ['Email Address', shop.email],
+                  ['Mobile Number', shop.mobile],
+                  ['Shop Name', shop.shopName || shop.shop_name],
+                  ['Location', [shop.shop?.city, shop.shop?.state].filter(Boolean).join(', ')],
+                ].filter(([, value]) => value).map(([label, value]) => (
+                  <div key={label} style={{ padding: '12px 0', borderTop: '1px solid #F1F4F7' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 600, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</p>
+                    <p style={{ margin: 0, fontSize: 14, color: '#526579' }}>{value}</p>
+                  </div>
+                ))}
+                <Button type="button" variant="secondary" onClick={() => setEditingProfile(true)} icon={<Edit2 size={15} />} style={{ marginTop: 14 }}>Edit Profile</Button>
+              </>
+            )}
           </Card>
-
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10,
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', textAlign: 'left',
-                background: activeTab === tab.id ? 'linear-gradient(135deg, #EAF3F9, #E7F8F5)' : 'transparent',
-                color: activeTab === tab.id ? '#176FA9' : '#718096',
-              }}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+        ) : (
         <motion.div key={activeTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
           {activeTab === 'account' && (
             <Card>
@@ -327,7 +365,7 @@ export default function ProfilePage() {
             </Card>
           )}
         </motion.div>
-      </div>
+        )}
     </div>
   );
 }
