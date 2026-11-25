@@ -258,7 +258,7 @@ function ChatView({ convId, onBack, isMobile, userId, userName }) {
     }
   };
 
-  if (!conv) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#A0AEC0' }}>Loading...</p></div>;
+  if (!conv) return <LoadingState label="Loading conversation…" variant="chat" minHeight="100%" />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: isMobile ? '100%' : '100%', minHeight: 0, overflow: 'hidden', background: '#fff' }}>
@@ -415,7 +415,7 @@ export default function InquiriesPage() {
 
   const handleBack = () => { setShowChat(false); setActiveId(null); navigate('/inquiries'); };
 
-  if (loading) return <LoadingState label="Loading inquiries…" />;
+  if (loading) return <LoadingState label="Loading inquiries…" variant="list" />;
 
   if (isMobile) {
     if (showChat && activeId) {

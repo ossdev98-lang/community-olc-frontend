@@ -75,7 +75,7 @@ export default function NotificationsPage() {
     if (notif.link) navigate(notif.link);
   };
 
-  if (loading) return <LoadingState label="Loading notifications…" />;
+  if (loading) return <LoadingState label="Loading notifications…" variant="list" />;
 
   return (
     <div className="notifications-page" style={{ maxWidth: 700 }}>

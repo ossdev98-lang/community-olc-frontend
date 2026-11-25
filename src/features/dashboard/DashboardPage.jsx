@@ -69,7 +69,7 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  if (loading) return <LoadingState label="Loading dashboard…" />;
+  if (loading) return <LoadingState label="Loading dashboard…" variant="dashboard" />;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

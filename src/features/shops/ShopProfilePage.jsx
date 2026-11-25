@@ -37,7 +37,7 @@ export default function ShopProfilePage() {
     })();
   }, [id]);
 
-  if (loading) return <LoadingState label="Loading shop profile…" />;
+  if (loading) return <LoadingState label="Loading shop profile…" variant="profile" />;
   if (!shop) return (
     <div style={{ textAlign: 'center', padding: 60 }}>
       <p style={{ color: '#718096', marginBottom: 16 }}>Shop not found</p>

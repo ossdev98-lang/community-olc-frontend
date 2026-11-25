@@ -84,7 +84,7 @@ export default function ProfilePage() {
     });
   }, [shop]);
 
-  if (loading) return <LoadingState label="Loading your profile…" />;
+  if (loading) return <LoadingState label="Loading your profile…" variant="profile" />;
   const handleSave = async () => {
     setSaving(true);
     try {

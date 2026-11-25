@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
     })();
   }, []);
 
-  if (loading) return <LoadingState label="Loading admin dashboard…" />;
+  if (loading) return <LoadingState label="Loading admin dashboard…" variant="dashboard" />;
 
   const statCards = [
     { icon: Store, label: 'Total Shops', value: stats.totalShops, sub: `${stats.approvedShops} approved`, color: '#176FA9', bg: '#EAF3F9', trend: '+3 this week' },

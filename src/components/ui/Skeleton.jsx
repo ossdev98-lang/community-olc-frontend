@@ -1,8 +1,8 @@
-export function Skeleton({ width = '100%', height = 16, borderRadius = 8, className = '' }) {
+export function Skeleton({ width = '100%', height = 16, borderRadius = 8, className = '', style = {} }) {
   return (
     <div
       className={`skeleton ${className}`}
-      style={{ width, height, borderRadius }}
+      style={{ width, height, borderRadius, flexShrink: 0, ...style }}
     />
   );
 }

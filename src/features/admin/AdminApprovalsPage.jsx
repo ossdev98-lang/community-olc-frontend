@@ -57,7 +57,7 @@ export default function AdminApprovalsPage() {
     }
   };
 
-  if (loading) return <LoadingState label="Loading shop applications…" />;
+  if (loading) return <LoadingState label="Loading shop applications…" variant="table" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>

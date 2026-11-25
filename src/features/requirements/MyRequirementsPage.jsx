@@ -65,7 +65,7 @@ export default function MyRequirementsPage() {
     }
   };
 
-  if (loading) return <LoadingState label="Loading your requirements…" />;
+  if (loading) return <LoadingState label="Loading your requirements…" variant="list" />;
 
   return (
     <div className="my-requirements-page" style={{ maxWidth: 900 }}>

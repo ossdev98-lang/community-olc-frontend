@@ -46,7 +46,7 @@ export default function ShopDirectoryPage() {
     return list;
   }, [shops, search, cityFilter, verifiedOnly]);
 
-  if (loading) return <LoadingState label="Loading shops…" />;
+  if (loading) return <LoadingState label="Loading shops…" variant="list" />;
 
   return (
     <div className="shop-directory-page" style={{ maxWidth: 1000 }}>

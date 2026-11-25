@@ -65,7 +65,7 @@ export default function AdminMembersPage() {
     }
   };
 
-  if (loading) return <LoadingState label="Loading members…" />;
+  if (loading) return <LoadingState label="Loading members…" variant="table" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>

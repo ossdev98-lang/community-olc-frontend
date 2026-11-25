@@ -47,7 +47,7 @@ export default function RequirementDetailPage() {
     load();
   }, [id, user?.shopId]);
 
-  if (loading) return <LoadingState label="Loading requirement…" />;
+  if (loading) return <LoadingState label="Loading requirement…" variant="detail" />;
   if (!req) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
       <p style={{ color: '#718096' }}>Requirement not found</p>

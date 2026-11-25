@@ -49,7 +49,7 @@ export default function SavedPostsPage() {
   const active = filtered.filter(r => r.status === 'ACTIVE' && new Date(r.expires_at || r.expiresAt) > Date.now());
   const expired = filtered.filter(r => r.status !== 'ACTIVE' || new Date(r.expires_at || r.expiresAt) <= Date.now());
 
-  if (loading) return <LoadingState label="Loading saved posts…" />;
+  if (loading) return <LoadingState label="Loading saved posts…" variant="list" />;
 
   return (
     <div className="saved-posts-page" style={{ maxWidth: 800 }}>

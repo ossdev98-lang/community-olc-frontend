@@ -134,7 +134,7 @@ export default function CreateRequirementPage({ editMode = false }) {
     return uploadService.serve('requirements', path.replace(/\\/g, '/').split('/').pop());
   };
 
-  if (pageLoading) return <LoadingState label="Loading requirement…" />;
+  if (pageLoading) return <LoadingState label="Loading requirement…" variant="form" />;
 
   return (
     <div className="create-requirement-page" style={{ maxWidth: 720 }}>

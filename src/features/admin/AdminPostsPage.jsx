@@ -55,7 +55,7 @@ export default function AdminPostsPage() {
     }
   };
 
-  if (loading) return <LoadingState label="Loading posts…" />;
+  if (loading) return <LoadingState label="Loading posts…" variant="table" />;
 
   return (
     <div style={{ maxWidth: 1000 }}>
