@@ -413,15 +413,21 @@ export default function InquiriesPage() {
     navigate(`/inquiries/${conv.id}`);
   };
 
-  const handleBack = () => { setShowChat(false); setActiveId(null); navigate('/inquiries'); };
+  const handleBack = () => {
+    // The URL is the source of truth for the mobile split view. Replacing the
+    // chat entry prevents a stale :id route from reopening the conversation.
+    setShowChat(false);
+    setActiveId(null);
+    navigate('/inquiries', { replace: true });
+  };
 
   if (loading) return <LoadingState label="Loading inquiries…" variant="list" />;
 
   if (isMobile) {
-    if (showChat && activeId) {
+    if (id && id !== 'new') {
       return (
         <div className="inquiry-mobile-chat" style={{ margin: '0 -12px', height: '100%', minHeight: 0 }}>
-          <ChatView convId={activeId} onBack={handleBack} isMobile={true} userId={user.id} userName={user.name} />
+          <ChatView convId={id} onBack={handleBack} isMobile={true} userId={user.id} userName={user.name} />
         </div>
       );
     }
