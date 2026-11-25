@@ -57,7 +57,9 @@ export default function DashboardPage() {
           shopService.list({ limit: 5 }),
         ]);
         setRequirements(reqRes.data.requirements ?? []);
-        setMyReqs(myRes.data.requirements ?? []);
+        setMyReqs((myRes.data.requirements ?? []).filter(requirement =>
+          user?.id != null && String(requirement.user_id ?? requirement.userId) === String(user.id)
+        ));
         setConversations(convRes.data.conversations ?? []);
         setShops(shopRes.data.shops ?? []);
       } catch (err) {

@@ -25,7 +25,11 @@ export default function MyRequirementsPage() {
     try {
       const res = await requirementService.list({ mine: 'true' });
       const data = res.data?.data ?? res.data;
-      setReqs(data.requirements ?? []);
+      const accountId = user?.id;
+      const ownRequirements = (data.requirements ?? []).filter(requirement =>
+        accountId != null && String(requirement.user_id ?? requirement.userId) === String(accountId)
+      );
+      setReqs(ownRequirements);
     } catch (err) {
       setReqs([]);
     } finally {
